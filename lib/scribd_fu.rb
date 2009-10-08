@@ -65,7 +65,7 @@ module ScribdFu
     # Upload a file to Scribd
     def upload(obj, file_path)
       begin
-        res = scribd_user.upload(:file => escape(file_path), :access => access_level)
+        res = scribd_user.upload(:file => escape(file_path), :access => access_level, :my_user_id => options[:my_user_id])
         obj.update_attributes({:ipaper_id => res.doc_id, :ipaper_access_key => res.access_key})
       rescue
         raise ScribdFuUploadError, "Sorry, but #{obj.class} ##{obj.id} could not be uploaded to Scribd"
@@ -84,10 +84,18 @@ module ScribdFu
       # Load the config file and strip any whitespace from the values
       @config ||= YAML.load_file(ConfigPath).each_pair{|k,v| {k=>v.to_s.strip}}.symbolize_keys!
     end
-
+    
     # Get the preferred access level for iPaper documents
     def access_level
       config[:access] || 'private'
+    end
+
+    def options=(options_hash)
+      @options = options_hash 
+    end
+    
+    def options
+      @options
     end
 
     # Load, store, and return the associated iPaper document
@@ -107,9 +115,10 @@ module ScribdFu
   module ClassMethods
 
     # Load and inject ScribdFu goodies
-    def has_ipaper_and_uses(str)
+    def has_ipaper_and_uses(str, options)
       check_environment
       load_base_plugin(str)
+      set_options(options)
 
       include InstanceMethods
 
@@ -130,6 +139,10 @@ module ScribdFu
         ScribdFu::config
       end
 
+      def set_options(options)
+        ScribdFu::options=(options)
+      end
+      
       # Load the rscribd gem
       def load_rscribd
         begin
